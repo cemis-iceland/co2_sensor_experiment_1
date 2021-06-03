@@ -18,7 +18,7 @@ void loop() {
   bool ready = false;
   sensor1.data_ready(&ready);
   while (!ready) {
-    vTaskDelay(100 * portTICK_PERIOD_MS);
+    vTaskDelay(500 / portTICK_PERIOD_MS);
     sensor1.data_ready(&ready);
   };
   // log_e("Ready state: %s\n", ready ? "true" : "false");

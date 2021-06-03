@@ -57,5 +57,6 @@ private:
         : address(address), fcode(fcode),
           register_start(__bswap_16(register_start)),
           content(__bswap_16(content)), CRC(__bswap_16(crc)){};
+    operator uint8_t*() { return reinterpret_cast<uint8_t*>(this); }
   };
 };
