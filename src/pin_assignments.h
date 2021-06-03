@@ -8,8 +8,8 @@
 #define SPI_SCLK 14
 #define SD_CSN 13
 
-#define SDA 21
-#define SCL 22
+#define I2C_SDA 21
+#define I2C_SCL 22
 
 #define U1_TX 13
 #define U1_RX 14
