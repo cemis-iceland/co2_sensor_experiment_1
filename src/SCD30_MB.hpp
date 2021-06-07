@@ -9,7 +9,7 @@ typedef struct SCD30_measurement {
   float humidity_percent; // Relative humidity in percent
 } SCD30_Measurement;
 
-enum class scd30_err_t { OK = 0, INVALID_RESPONSE };
+enum class scd30_err_t { OK = 0, INVALID_RESPONSE, TIMEOUT };
 
 typedef HardwareSerial ISerial;
 // template <typename ISerial = HardwareSerial>
@@ -18,6 +18,9 @@ public:
   SCD30_MB(){};
   SCD30_MB(ISerial* serial, uint8_t tx_pin, uint8_t rx_pin);
   scd30_err_t read_measurement(SCD30_Measurement* out);
+  scd30_err_t read_measurement_blocking(SCD30_Measurement* out,
+                                        time_t timeout_ms = 3000,
+                                        time_t poll_period_ms = 50);
   scd30_err_t data_ready(bool* out);
 
 private:

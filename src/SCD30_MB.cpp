@@ -28,6 +28,26 @@ SCD30_MB::SCD30_MB(ISerial* serial, uint8_t rx_pin, uint8_t tx_pin) {
   this->serial->begin(19200, SERIAL_8N1, rx_pin, tx_pin);
 }
 
+/// Poll the sensor until it has data ready, then read it.
+/// Timeout is not very accurate.
+/// Returns scd30_err_t::TIMEOUT in case of timeout.
+scd30_err_t SCD30_MB::read_measurement_blocking(SCD30_Measurement* out,
+                                                time_t timeout_ms,
+                                                time_t poll_period_ms) {
+  time_t t_spent = 0;
+  bool ready = false;
+  this->data_ready(&ready);
+  while (!ready) {
+    vTaskDelay(poll_period_ms / portTICK_PERIOD_MS);
+    t_spent += poll_period_ms;
+    if (t_spent >= timeout_ms) {
+      return scd30_err_t::TIMEOUT;
+    }
+    this->data_ready(&ready);
+  }
+  return read_measurement(out);
+}
+
 /// Ask the sensor whether it has a new measurement ready
 /// @param out pointer to bool where result will be stored.
 scd30_err_t SCD30_MB::data_ready(bool* out) {
