@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include <array>
 #include <byteswap.h>
 #include <stdint.h>
 
@@ -11,6 +12,8 @@ typedef struct SCD30_measurement {
 
 enum class scd30_err_t { OK = 0, INVALID_RESPONSE, TIMEOUT };
 
+uint16_t CRC16(const uint8_t* nData, uint16_t wLength);
+
 typedef HardwareSerial ISerial;
 // template <typename ISerial = HardwareSerial>
 class SCD30_MB {
@@ -21,14 +24,16 @@ public:
   scd30_err_t read_measurement_blocking(SCD30_Measurement* out,
                                         time_t timeout_ms = 3000,
                                         time_t poll_period_ms = 50);
+  scd30_err_t start_cont_measurements(uint16_t pressure = 0x0000);
+  scd30_err_t set_meas_interval(uint16_t interval_s = 2);
   scd30_err_t data_ready(bool* out);
 
 private:
   ISerial* serial;
 
-  uint8_t READ = 0x03;
-  uint8_t WRITE = 0x06;
-  uint8_t ADDRESS = 0x61; // SCD30 sensor Address
+  static const uint8_t READ = 0x03;    // Modbus function code
+  static const uint8_t WRITE = 0x06;   // Modbus function code
+  static const uint8_t ADDRESS = 0x61; // SCD30 sensor Address
 
   enum reg { // Register map of SCD30 sensor
     FIRMWARE_VERSION = 0x0020,
@@ -46,20 +51,18 @@ private:
     TEMP_OFFSET = 0x003B,     // calibration for temp sensor in 1/100 deg c.
   };
 
-  struct Request {
-    uint8_t address;         // Sensor address
-    uint8_t fcode;           // Function code (READ=0x03/WRITE=0x06)
-    uint16_t register_start; // Address to read/write
-    uint16_t content;        // reading: number of registers to read
-                             // writing: data to write
-    uint16_t CRC;
-    // This mess is here because the esp32 is a little endian system, and the
-    // sensor is a big endian system.
-    Request(uint8_t address, uint8_t fcode, uint16_t register_start,
-            uint16_t content, uint16_t crc)
-        : address(address), fcode(fcode),
-          register_start(__bswap_16(register_start)),
-          content(__bswap_16(content)), CRC(__bswap_16(crc)){};
-    operator uint8_t*() { return reinterpret_cast<uint8_t*>(this); }
-  };
+  auto create_request(uint8_t fcode, uint16_t register_start, uint16_t content)
+      -> std::array<uint8_t, 8> {
+    std::array<uint8_t, 8> buffer{0};
+    buffer[0] = ADDRESS;
+    buffer[1] = fcode;
+    buffer[2] = (register_start & 0xff00) >> 8; // LSB
+    buffer[3] = register_start & 0x00ff;        // MSB
+    buffer[4] = (content & 0xff00) >> 8;        // LSB
+    buffer[5] = content & 0x00ff;               // MSB
+    auto crc = CRC16(buffer.cbegin(), 6);
+    buffer[6] = crc & 0x00ff;
+    buffer[7] = (crc & 0xff00) >> 8;
+    return buffer;
+  }
 };
