@@ -68,12 +68,27 @@ uint16_t CRC16(const uint8_t* nData, uint16_t wLength) {
   return wCRCWord;
 }
 
+auto SCD30_MB::create_request(uint8_t fcode, uint16_t register_start,
+                              uint16_t content) -> std::array<uint8_t, 8> {
+  std::array<uint8_t, 8> buffer{0};
+  buffer[0] = ADDRESS;
+  buffer[1] = fcode;
+  buffer[2] = (register_start & 0xff00) >> 8; // MSB, beware endianness
+  buffer[3] = register_start & 0x00ff;        // LSB
+  buffer[4] = (content & 0xff00) >> 8;        // MSB
+  buffer[5] = content & 0x00ff;               // LSB
+  auto crc = CRC16(buffer.cbegin(), 6);
+  buffer[6] = crc & 0x00ff;
+  buffer[7] = (crc & 0xff00) >> 8;
+  return buffer;
+}
+
 void send_request(ISerial* serial, const std::array<uint8_t, 8> request,
                   uint8_t* response_buffer, uint8_t res_len) {
   clear_buffer(serial);
   serial->write(request.cbegin(), request.size());
-  vTaskDelay(5 / portTICK_PERIOD_MS);
   serial->readBytes(response_buffer, res_len);
+  clear_buffer(serial);
 #ifdef SCD30_DEBUG
   Serial.printf("scd30 request: %s, response: %s\n",
                 bytes_to_str(request.cbegin(), request.size()).c_str(),
@@ -86,12 +101,14 @@ SCD30_MB::SCD30_MB(ISerial* serial, uint8_t rx_pin, uint8_t tx_pin) {
   this->serial->begin(19200, SERIAL_8N1, rx_pin, tx_pin);
 }
 
-/// Poll the sensor until it has data ready, then read it.
-/// Timeout is not very accurate.
-/// Returns scd30_err_t::TIMEOUT in case of timeout.
-scd30_err_t SCD30_MB::read_measurement_blocking(SCD30_Measurement* out,
-                                                time_t timeout_ms,
-                                                time_t poll_period_ms) {
+bool SCD30_MB::sensor_connected() {
+  uint8_t resp[1]{0};
+  send_request(serial, create_request(READ, reg::FIRMWARE_VERSION, 1), resp, 1);
+  return resp[0] == SCD30_MB::ADDRESS; // True if sensor responds.
+}
+
+scd30_err_t SCD30_MB::block_until_data_ready(unsigned int timeout_ms,
+                                             unsigned int poll_period_ms) {
   time_t t_spent = 0;
   bool ready = false;
   this->data_ready(&ready);
@@ -99,11 +116,20 @@ scd30_err_t SCD30_MB::read_measurement_blocking(SCD30_Measurement* out,
     vTaskDelay(poll_period_ms / portTICK_PERIOD_MS);
     t_spent += poll_period_ms;
     if (t_spent >= timeout_ms) {
-      read_measurement(out);
       return scd30_err_t::TIMEOUT;
     }
     this->data_ready(&ready);
   }
+  return scd30_err_t::OK;
+}
+
+/// Poll the sensor until it has data ready, then read it.
+/// Timeout is not very accurate.
+/// Returns scd30_err_t::TIMEOUT in case of timeout.
+scd30_err_t SCD30_MB::read_measurement_blocking(SCD30_Measurement* out,
+                                                unsigned int timeout_ms,
+                                                unsigned int poll_period_ms) {
+  block_until_data_ready(timeout_ms, poll_period_ms);
   return read_measurement(out);
 }
 

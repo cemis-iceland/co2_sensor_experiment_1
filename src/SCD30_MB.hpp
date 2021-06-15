@@ -12,8 +12,6 @@ typedef struct SCD30_measurement {
 
 enum class scd30_err_t { OK = 0, INVALID_RESPONSE, TIMEOUT };
 
-uint16_t CRC16(const uint8_t* nData, uint16_t wLength);
-
 typedef HardwareSerial ISerial;
 // template <typename ISerial = HardwareSerial>
 class SCD30_MB {
@@ -22,11 +20,14 @@ public:
   SCD30_MB(ISerial* serial, uint8_t tx_pin, uint8_t rx_pin);
   scd30_err_t read_measurement(SCD30_Measurement* out);
   scd30_err_t read_measurement_blocking(SCD30_Measurement* out,
-                                        time_t timeout_ms = 3000,
-                                        time_t poll_period_ms = 50);
+                                        unsigned int timeout_ms = 3000,
+                                        unsigned int poll_period_ms = 100);
   scd30_err_t start_cont_measurements(uint16_t pressure = 0x0000);
   scd30_err_t set_meas_interval(uint16_t interval_s = 2);
   scd30_err_t data_ready(bool* out);
+  scd30_err_t block_until_data_ready(unsigned int timeout_ms = 10000,
+                                     unsigned int poll_period_ms = 100);
+  bool sensor_connected();
 
 private:
   ISerial* serial;
@@ -50,19 +51,6 @@ private:
     AUTOCALI_ENABLE = 0x003A, // bool, write to control automatic calibration.
     TEMP_OFFSET = 0x003B,     // calibration for temp sensor in 1/100 deg c.
   };
-
   auto create_request(uint8_t fcode, uint16_t register_start, uint16_t content)
-      -> std::array<uint8_t, 8> {
-    std::array<uint8_t, 8> buffer{0};
-    buffer[0] = ADDRESS;
-    buffer[1] = fcode;
-    buffer[2] = (register_start & 0xff00) >> 8; // LSB
-    buffer[3] = register_start & 0x00ff;        // MSB
-    buffer[4] = (content & 0xff00) >> 8;        // LSB
-    buffer[5] = content & 0x00ff;               // MSB
-    auto crc = CRC16(buffer.cbegin(), 6);
-    buffer[6] = crc & 0x00ff;
-    buffer[7] = (crc & 0xff00) >> 8;
-    return buffer;
-  }
+      -> std::array<uint8_t, 8>;
 };
