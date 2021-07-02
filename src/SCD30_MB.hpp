@@ -1,4 +1,5 @@
 #pragma once
+#include "modbus.h"
 #include <Arduino.h>
 #include <array>
 #include <byteswap.h>
@@ -12,12 +13,11 @@ typedef struct SCD30_measurement {
 
 enum class scd30_err_t { OK = 0, INVALID_RESPONSE, TIMEOUT };
 
-typedef HardwareSerial ISerial;
-// template <typename ISerial = HardwareSerial>
 class SCD30_MB {
 public:
   SCD30_MB(){};
-  SCD30_MB(ISerial* serial, uint8_t tx_pin, uint8_t rx_pin);
+  // modbus should be initialized at 19200 baud, with config SERIAL_8N1.
+  SCD30_MB(Modbus* modbus);
   scd30_err_t read_measurement(SCD30_Measurement* out);
   scd30_err_t read_measurement_blocking(SCD30_Measurement* out,
                                         unsigned int timeout_ms = 3000,
@@ -30,7 +30,7 @@ public:
   bool sensor_connected();
 
 private:
-  ISerial* serial;
+  Modbus* mb;
 
   static const uint8_t READ = 0x03;    // Modbus function code
   static const uint8_t WRITE = 0x06;   // Modbus function code
@@ -51,6 +51,4 @@ private:
     AUTOCALI_ENABLE = 0x003A, // bool, write to control automatic calibration.
     TEMP_OFFSET = 0x003B,     // calibration for temp sensor in 1/100 deg c.
   };
-  auto create_request(uint8_t fcode, uint16_t register_start, uint16_t content)
-      -> std::array<uint8_t, 8>;
 };
