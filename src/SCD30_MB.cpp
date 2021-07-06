@@ -21,7 +21,7 @@ SCD30_MB::SCD30_MB(Modbus* modbus) : mb{modbus} {}
 
 bool SCD30_MB::sensor_connected() {
   static const auto req =
-      mb->create_request(ADDRESS, Modbus::READ, reg::FIRMWARE_VERSION, 1);
+      mb->create_request(ADDRESS, READ, reg::FIRMWARE_VERSION, 1);
   uint8_t resp[1]{0};
   mb->send_request(req, resp, 1);
   return resp[0] == SCD30_MB::ADDRESS; // True if sensor responds.
@@ -57,7 +57,7 @@ scd30_err_t SCD30_MB::read_measurement_blocking(SCD30_Measurement* out,
 /// @param out pointer to bool where result will be stored.
 scd30_err_t SCD30_MB::data_ready(bool* out) {
   const auto request =
-      mb->create_request(ADDRESS, Modbus::READ, reg::DATA_READY, 0x0001);
+      mb->create_request(ADDRESS, READ, reg::DATA_READY, 0x0001);
   uint8_t response_buf[7]{0};
 
   mb->send_request(request, response_buf, sizeof(response_buf));
@@ -74,7 +74,7 @@ scd30_err_t SCD30_MB::data_ready(bool* out) {
 /// Ask the sensor for the latest measured values and store them in out
 scd30_err_t SCD30_MB::read_measurement(SCD30_Measurement* out) {
   const auto read_meas_request =
-      mb->create_request(ADDRESS, Modbus::READ, reg::READ_DATA, 0x0006);
+      mb->create_request(ADDRESS, READ, reg::READ_DATA, 0x0006);
   uint8_t response_buf[17]{0};
 
   mb->send_request(read_meas_request, response_buf, sizeof(response_buf));
@@ -99,7 +99,7 @@ scd30_err_t SCD30_MB::read_measurement(SCD30_Measurement* out) {
 /// Starts measuring co2 at a set interval, with optional pressure compensation.
 /// @param pressure Atmospheric pressure in mbar, or 0 to disable compensation.
 scd30_err_t SCD30_MB::start_cont_measurements(uint16_t pressure) {
-  auto req = mb->create_request(ADDRESS, Modbus::WRITE, reg::START_CONT_MEAS,
+  auto req = mb->create_request(ADDRESS, :WRITE, reg::START_CONT_MEAS,
                                 pressure);
   uint8_t response_buf[8]{0};
   mb->send_request(req, response_buf, sizeof(response_buf));
@@ -107,7 +107,7 @@ scd30_err_t SCD30_MB::start_cont_measurements(uint16_t pressure) {
 }
 
 scd30_err_t SCD30_MB::set_meas_interval(uint16_t interval_s) {
-  auto req = mb->create_request(ADDRESS, Modbus::WRITE, reg::MEAS_INTERVAL,
+  auto req = mb->create_request(ADDRESS, WRITE, reg::MEAS_INTERVAL,
                                 interval_s);
   uint8_t response_buf[8]{0};
   mb->send_request(req, response_buf, sizeof(response_buf));

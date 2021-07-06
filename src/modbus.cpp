@@ -9,15 +9,12 @@ void clear_buffer(Stream*);
 std::string bytes_to_str(const uint8_t*, size_t);
 uint16_t CRC16(const uint8_t*, uint16_t);
 
-Modbus::Fcode Modbus::READ = Modbus::Fcode::READ;
-Modbus::Fcode Modbus::WRITE = Modbus::Fcode::WRITE;
-
-Modbus::Request Modbus::create_request(uint8_t address, Fcode fcode,
+Modbus::Request Modbus::create_request(uint8_t address, uint8_t fcode,
                                        uint16_t register_start,
                                        uint16_t content) {
   std::array<uint8_t, 8> buffer{0};
   buffer[0] = address;
-  buffer[1] = static_cast<uint8_t>(fcode);
+  buffer[1] = fcode;
   buffer[2] = (register_start & 0xff00) >> 8; // MSB, beware endianness
   buffer[3] = register_start & 0x00ff;        // LSB
   buffer[4] = (content & 0xff00) >> 8;        // MSB
