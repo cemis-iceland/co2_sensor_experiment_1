@@ -99,7 +99,7 @@ scd30_err_t SCD30_MB::read_measurement(SCD30_Measurement* out) {
 /// Starts measuring co2 at a set interval, with optional pressure compensation.
 /// @param pressure Atmospheric pressure in mbar, or 0 to disable compensation.
 scd30_err_t SCD30_MB::start_cont_measurements(uint16_t pressure) {
-  auto req = mb->create_request(ADDRESS, :WRITE, reg::START_CONT_MEAS,
+  auto req = mb->create_request(ADDRESS, WRITE, reg::START_CONT_MEAS,
                                 pressure);
   uint8_t response_buf[8]{0};
   mb->send_request(req, response_buf, sizeof(response_buf));
