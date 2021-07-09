@@ -39,8 +39,9 @@ std::stringstream& fmt_meas(std::stringstream& ss, std::string variable,
   return ss;
 }
 
-SCD30_MB scd30_1;
-SCD30_MB scd30_2;
+SFE_UBLOX_GPS gps_module;
+
+SCD30_MB scd30;
 K30_MB k30fr;
 K30_MB k33elg;
 
@@ -72,22 +73,34 @@ std::string uid(int len = 6) {
   return ss.str();
 }
 
+std::string get_gps_time(SFE_UBLOX_GPS& gps = gps_module) {
+  std::stringstream ss{""};
+  ss << (int)gps_module.getYear() << "-" << std::setw(2) << std::setfill('0')
+     << (int)gps_module.getMonth() << "-" << std::setw(2) << std::setfill('0')
+     << (int)gps_module.getDay() << "T" << std::setw(2) << std::setfill('0')
+     << (int)gps_module.getHour() << "h" << std::setw(2) << std::setfill('0')
+     << (int)gps_module.getMinute() << "m" << std::setw(2) << std::setfill('0')
+     << (int)gps_module.getSecond();
+  return ss.str();
+}
+
 void setup() {
   Serial.begin(115200);
 
   log_i("Initializing sensors");
   // Set up CO2 Sensors
   Serial1.begin(19200, SERIAL_8N1, U1_RX, U1_TX);
-  Serial2.begin(9600, SERIAL_8N1, U2_RX, U2_TX); //Hardware serial port 2
+  Serial2.begin(9600, SERIAL_8N1, U2_RX, U2_TX); // IO 32, IO 27 (RDY 2, RDY 1)
 
   static auto mb1 = Modbus(&Serial1);
   static auto mb2 = Modbus(&Serial2);
-  k30fr = K30_MB(&mb2, 0x68);   // Constructor using modbus 2 and address 0x68
-  k33elg = K30_MB(&mb2, 0x69);  // Constructor using modbus 2 and address 0x69 (nice)
+  k30fr = K30_MB(&mb2, 0x69);   // Constructor using modbus 2 and address 0x69 (nice)
+  k33elg = K30_MB(&mb2, 0x68);  // Constructor using modbus 2 and address 0x68
   scd30 = SCD30_MB(&mb1);
-  log_fail("SCD30 initialization", scd30.sensor_connected());
-  log_fail("K30-FR initialization", k30fr.sensor_connected());
-  log_fail("K33-ELG initialization", k33elg.sensor_connected());
+  log_fail("SCD30 initialization", scd30.sensor_connected(), false);
+  log_fail("K30-FR initialization", k30fr.sensor_connected(), true);
+  log_fail("K33-ELG initialization", k33elg.sensor_connected(), false);
+  log_fail("K33-ELG initialization round 2", k33elg.sensor_connected(), true);
 
   // Set up I2C peripherals
   log_fail("I2C initialization", Wire.begin(I2C_SDA, I2C_SCL));
@@ -103,8 +116,15 @@ void setup() {
   scd30.set_meas_interval(2);
   scd30.start_cont_measurements(0x0000);
 
+  // Await time signal from GPS
+  while (!(gps_module.getTimeValid() && gps_module.getDateValid())) {
+    log_i("Waiting for GPS time...");
+    vTaskDelay(5000 / portTICK_PERIOD_MS);
+  }
+  log_i("Gps time ready");
+
   // Create new file for measurements
-  filename = FILENAME_PREFIX + uid() + FILENAME_POSTFIX;
+  filename = FILENAME_PREFIX + get_gps_time() + FILENAME_POSTFIX;
   log_i("Creating file %s", filename.c_str());
   auto file = SD.open(filename.c_str(), FILE_WRITE);
   file.println(header.c_str());
@@ -125,12 +145,12 @@ void loop() {
 
   // Read CO2 concenctration from K30-FR
   float k30fr_meas;
-  k30fr.read_measurement(k30fr_meas);
+  k30fr.read_measurement(&k30fr_meas);
   fmt_meas(ss, "K30_co2", k30fr_meas);
 
   // Read CO2 concentration from K33-ELG
   float k33elg_meas;
-  k33elg.read_measurement(k33elg_meas);
+  k33elg.read_measurement(&k33elg_meas);
   fmt_meas(ss, "K33_co2", k33elg_meas);
 
   // Read BME280 environmental data
@@ -141,6 +161,8 @@ void loop() {
   fmt_meas(ss, "bme280_1_temperature", temp.temperature);
   fmt_meas(ss, "bme280_1_humidity", hume.relative_humidity);
   fmt_meas(ss, "bme280_1_pressure", pres.pressure, 9);
+
+  fmt_meas(ss, "gps time", get_gps_time());
 
   // Log data for debugging
   log_d("%s", ss.str().c_str());

@@ -9,7 +9,7 @@
 // #define SCD30_DEBUG
 #include "SCD30_MB.hpp"
 
-std::string bytes_to_str(const uint8_t* buf, size_t len) {
+inline std::string bytes_to_str(const uint8_t* buf, size_t len) {
   std::stringstream ss{""};
   for (int i = 0; i < len; i++) {
     ss << std::hex << std::setw(2) << std::setfill('0') << (int)buf[i] << " ";

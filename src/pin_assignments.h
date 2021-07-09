@@ -11,8 +11,8 @@
 
 #define U1_TX 13
 #define U1_RX 14
-#define U2_TX 33
-#define U2_RX 25
+#define U2_TX 33 //27
+#define U2_RX 25 //32
 
 #define SPI_MOSI 23
 #define SPI_MISO 19

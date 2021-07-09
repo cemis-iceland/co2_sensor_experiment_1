@@ -6,7 +6,7 @@
 #include <sstream>
 #include <stdint.h>
 
-std::string bytes_to_str(const uint8_t* buf, size_t len) {
+inline std::string bytes_to_str(const uint8_t* buf, size_t len) {
   std::stringstream ss{""};
   for (int i = 0; i < len; i++) {
     ss << std::hex << std::setw(2) << std::setfill('0') << (int)buf[i] << " ";
@@ -19,8 +19,8 @@ K30_MB::K30_MB(Modbus* modbus, uint8_t addr) : mb{modbus}, ADDRESS(addr) {}
 bool K30_MB::sensor_connected() {
     static const auto req = 
         mb->create_request(ADDRESS, READ_INPUT, reg::READ_CO2, 1);
-    uint8_t resp[1]{0};
-    mb->send_request(req, resp, 1);
+    uint8_t resp[7]{0};
+    mb->send_request(req, resp, sizeof(resp));
     return resp[0] == K30_MB::ADDRESS;
 }
 
