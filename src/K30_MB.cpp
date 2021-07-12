@@ -14,10 +14,11 @@ inline std::string bytes_to_str(const uint8_t* buf, size_t len) {
   return ss.str();
 }
 
-K30_MB::K30_MB(Modbus* modbus, uint8_t addr) : mb{modbus}, ADDRESS(addr) {}
+K30_MB::K30_MB(Modbus* modbus, uint8_t addr) : mb{modbus}, ADDRESS{addr} {}
 
+/// Check if sensor is connected on the right address.
 bool K30_MB::sensor_connected() {
-    static const auto req = 
+    auto req = 
         mb->create_request(ADDRESS, READ_INPUT, reg::READ_CO2, 1);
     uint8_t resp[7]{0};
     mb->send_request(req, resp, sizeof(resp));
